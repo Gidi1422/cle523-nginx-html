@@ -1,0 +1,45 @@
+---
+- name: PLAY [Deploy Nginx and custom content to web servers]
+  hosts: webservers
+  become: yes
+  vars:
+    # Set the web root directory specific to Nginx on Amazon Linux 2023
+    web_root: /usr/share/nginx/html
+
+  tasks:
+    - name: TASK [1. Install Nginx package (For Ubuntu/Debian based systems)]
+      ansible.builtin.apt:
+        name: nginx
+        state: present
+        update_cache: yes
+      when: ansible_distribution == "Ubuntu"
+
+    - name: TASK [2. Install Nginx package (For RedHat/CentOS based systems)]
+      ansible.builtin.dnf:
+        name: nginx
+        state: present
+      when: ansible_distribution in ["Amazon", "RedHat", "CentOS"]
+
+    - name: TASK [3. Ensure Nginx service is running and enabled]
+      ansible.builtin.service:
+        name: nginx
+        state: started
+        enabled: yes
+
+    - name: TASK [4. Create web root directory if it doesn't exist]
+      ansible.builtin.file:
+        path: "{{ web_root }}"
+        state: directory
+        owner: ec2-user
+        group: ec2-user
+        mode: '0755'
+      # The directory creation is critical for Amazon Linux 2023/RHEL systems
+      when: ansible_distribution in ["Amazon", "RedHat", "CentOS"]
+
+    - name: TASK [5. Deploy custom index.html file]
+      ansible.builtin.template:
+        src: index.html.j2
+        dest: "{{ web_root }}/index.html"
+        owner: ec2-user
+        group: ec2-user
+        mode: '0644'
